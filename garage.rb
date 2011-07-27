@@ -1,13 +1,19 @@
 class Garage
   include Observable
 
-  def initialize(capacity)
+  def initialize(capacity, accepted_vehicle = Vehicle)
     raise "Must have at least one parking space!" unless capacity > 0
     @capacity = capacity
     @vehicles = []
     @observers = {}
+    @accepted_vehicle = accepted_vehicle
   end
-
+  
+  def visit(visitor)
+    visitor.visited_garage(self)
+    visitor
+  end
+  
   def park(vehicle)
     raise "No spaces left :'(" if full?
     @vehicles << vehicle
@@ -47,3 +53,6 @@ class Garage
 end
 
 Vehicle = Object
+
+
+ParkingSpace = GarageFloor = Garage

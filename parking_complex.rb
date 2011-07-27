@@ -8,8 +8,8 @@ class ParkingComplex
       @index = 0
     end
     
-    def next_garage(garages)      
-      loop do
+    def next_garage(garages, vehicle)      
+      (garages.size + 1).times do
         garage = garages[@index]
         @index = (@index + 1) % garages.size
         return garage unless garage.full?
@@ -20,20 +20,12 @@ class ParkingComplex
   
   class FillFirstAvailableParkingStrategy
     
-    def next_garage(garages)
+    def next_garage(garages, vehicle)
       garages.find {|g| !g.full? }
     end
     
   end
-  
-  class EqualPercentageParkingStrategy
     
-    def next_garage(garages)
-      garages.sort {|g| g.percent_full}.first
-    end
-    
-  end
-  
   class CarNotFoundError < RuntimeError 
   end
   
@@ -47,8 +39,9 @@ class ParkingComplex
   end
   
   def park(vehicle)
-    raise NoSpacesLeftError.new unless spaces_available?    
-    @strategy.next_garage(@garages).park(vehicle)
+    raise NoSpacesLeftError.new if full?
+    garage = @strategy.next_garage(@garages, vehicle)
+    garage.park(vehicle)
     notify_observers
   end
   
@@ -69,8 +62,17 @@ class ParkingComplex
     @garages.map(&:vehicle_count).inject(&:+)
   end
 
-  def capacity
-    @garages.map(&:capacity).inject(&:+)
-  end
+  # def capacity
+  #   @garages.map(&:capacity).inject(&:+)
+  # end
   
+  def capacity
+    visit(CapacityVisitor.new).capacity
+  end
+
+  def visit(vistor)
+    vistor.visited_parking_complex(self)
+    @garages.each {|g| g.visit(vistor)}
+    vistor
+  end
 end

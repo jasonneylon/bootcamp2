@@ -1,9 +1,12 @@
 require 'test/unit'
 require './observable'
 require './garage'
+require './car'
+require './bus'
 require './employee'
 require './parking_complex'
 require './percentage_filter'
+require "./capacity_visitor"
 
 class TestGarage < Test::Unit::TestCase
   CAPACITY = 100
@@ -122,17 +125,6 @@ class TestGarage < Test::Unit::TestCase
     assert_equal 2, g1.vehicle_count
     assert_equal 0, g2.vehicle_count    
   end
-
-  def test_equal_percentage_parking_strategy
-    g1, g2 = Garage.new(4), Garage.new(100)
-    parking_complex = ParkingComplex.new(ParkingComplex::EqualPercentageParkingStrategy.new, g1, g2)
-    parking_complex.park(Vehicle.new)
-    parking_complex.park(Vehicle.new)
-    parking_complex.park(Vehicle.new)
-    assert_equal 1, g1.vehicle_count
-    assert_equal 2, g2.vehicle_count    
-  end
-
   
   def test_event_coordinator_notified_when_80pct
     event_coordinator = Employee.new
@@ -146,6 +138,49 @@ class TestGarage < Test::Unit::TestCase
   
     @garage.exit(@vehicle)
     assert !event_coordinator.active?
+  end
+  
+  def test_that_a_garage_floor_can_notify_attendents
+    floor1, floor2 = GarageFloor.new(100), GarageFloor.new(100)
+    multiStoreyGarage = ParkingComplex.new(ParkingComplex::RoundRobinParkingStrategy.new, floor1, floor2)
+   
+    attendant = Employee.new
+    floor1.register(attendant, PercentageFilter.new(100))
+    assert !attendant.active?
+
+    100.times { floor1.park(Vehicle.new) }
+    assert attendant.active?
+    
+    100.times { floor2.park(Vehicle.new) }
+    assert multiStoreyGarage.full?
+    
+  end
+  
+  def test_parking_complexes_with_multifloor_garages
+    floor3, floor4 = GarageFloor.new(100), GarageFloor.new(100)
+    multifloorgarage = ParkingComplex.new(ParkingComplex::RoundRobinParkingStrategy.new, floor3, floor4)
+    rygarage = Garage.new(100)
+  
+    two_garage_complex = ParkingComplex.new(ParkingComplex::RoundRobinParkingStrategy.new, multifloorgarage, rygarage)
+  
+    ryan = Employee.new
+    jason = Employee.new
+    two_garage_complex.register(ryan, PercentageFilter.new(100))
+    two_garage_complex.register(jason, PercentageFilter.new(100))
+  
+    assert !two_garage_complex.full?
+    199.times { two_garage_complex.park(Vehicle.new) }
+    assert !ryan.active?
+    101.times { two_garage_complex.park(Vehicle.new) }
+    assert ryan.active?
+  end
+  
+  def test_can_get_capacity_with_visitor
+    floor3, floor4 = Garage.new(100), Garage.new(100)
+    multifloorgarage = ParkingComplex.new(ParkingComplex::RoundRobinParkingStrategy.new, floor3, floor4)
+    v = CapacityVisitor.new
+    multifloorgarage.visit v
+    assert_equal v.capacity, 200
   end
   
 end
